@@ -1,0 +1,21 @@
+name: openclaw-twenty-integration
+ 
+services:
+  openclaw:
+    image: openclaw/openclaw:latest
+    container_name: openclaw
+    ports:
+      - "8080:8080"
+    environment:
+      - OPENCLAW_API_KEY=${OPENCLAW_API_KEY:-your-openclaw-api-key}
+      - TWENTY_API_KEY=${TWENTY_API_KEY}
+      - TWENTY_API_URL=${TWENTY_API_URL:-http://host.docker.internal:3000}
+    volumes:
+      - ../openclaw/skills:/app/skills:ro
+    restart: unless-stopped
+    networks:
+      - recruiting-network
+ 
+networks:
+  recruiting-network:
+    driver: bridge
