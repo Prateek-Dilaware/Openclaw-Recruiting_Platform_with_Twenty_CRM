@@ -3,7 +3,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 env_file_path = os.path.join(Path(__file__).resolve().parent.parent, ".env")
-load_dotenv(dotenv_path=env_file_path, override=True)
+load_dotenv(dotenv_path=env_file_path, override=False)
 
 from pydantic_settings import BaseSettings
 
@@ -34,7 +34,7 @@ class Settings(BaseSettings):
 
     # OpenClaw settings (new)
     USE_OPENCLAW: bool = False
-    OPENCLAW_API_URL: str = "http://localhost:8080"
+    OPENCLAW_API_URL: str = "http://openclaw:18789"
     OPENCLAW_API_KEY: str = ""
 
     class Config:

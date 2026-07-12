@@ -19,3 +19,11 @@ dist-ssr
 .idea/
 .DS_Store
 static/
+
+# OpenClaw
+openclaw/data/
+openclaw/secrets/
+openclaw/workspaces/*
+!openclaw/workspaces/default/
+openclaw/workspaces/default/*
+!openclaw/workspaces/default/skills/
