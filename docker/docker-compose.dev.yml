@@ -1,0 +1,185 @@
+# ─── Openclaw Recruiting Platform — Development Docker Compose ─────────────────
+#
+# Starts the full stack:
+#   1. twenty  — Twenty CRM (server + worker + postgres + redis)
+#   2. backend — FastAPI backend (with hot-reload via bind mount)
+#   3. frontend — Vite + React frontend (with HMR via bind mount)
+#
+# Openclaw container is intentionally left out for now (not yet installed).
+# It can be added later by uncommenting the openclaw service block below.
+#
+# USAGE:
+#   cd docker
+#   docker compose -f docker-compose.dev.yml up --build
+#
+# PORTS:
+#   localhost:3000  → Twenty CRM UI
+#   localhost:8000  → Backend FastAPI (+ /docs for Swagger UI)
+#   localhost:5173  → Frontend Vite Dev Server
+# ──────────────────────────────────────────────────────────────────────────────
+
+name: openclaw-dev
+
+services:
+
+  # ─── Twenty CRM ─────────────────────────────────────────────────────────────
+  twenty-server:
+    image: twentycrm/twenty:${TWENTY_TAG:-latest}
+    container_name: twenty-server
+    volumes:
+      - twenty-server-data:/app/packages/twenty-server/.local-storage
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_PORT: 3000
+      PG_DATABASE_URL: postgres://${PG_DATABASE_USER:-postgres}:${PG_DATABASE_PASSWORD:-postgres}@twenty-db:5432/default
+      SERVER_URL: ${TWENTY_SERVER_URL:-http://localhost:3000}
+      REDIS_URL: redis://twenty-redis:6379
+      DISABLE_DB_MIGRATIONS: ${DISABLE_DB_MIGRATIONS:-false}
+      DISABLE_CRON_JOBS_REGISTRATION: ${DISABLE_CRON_JOBS_REGISTRATION:-false}
+      STORAGE_TYPE: local
+      ENCRYPTION_KEY: ${TWENTY_ENCRYPTION_KEY}
+      APP_SECRET: ${TWENTY_APP_SECRET:-}
+    depends_on:
+      twenty-db:
+        condition: service_healthy
+      twenty-redis:
+        condition: service_healthy
+    healthcheck:
+      test: curl --fail http://localhost:3000/healthz
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+    networks:
+      - recruiting-net
+
+  twenty-worker:
+    image: twentycrm/twenty:${TWENTY_TAG:-latest}
+    container_name: twenty-worker
+    volumes:
+      - twenty-server-data:/app/packages/twenty-server/.local-storage
+    command: ["yarn", "worker:prod"]
+    environment:
+      PG_DATABASE_URL: postgres://${PG_DATABASE_USER:-postgres}:${PG_DATABASE_PASSWORD:-postgres}@twenty-db:5432/default
+      SERVER_URL: ${TWENTY_SERVER_URL:-http://localhost:3000}
+      REDIS_URL: redis://twenty-redis:6379
+      DISABLE_DB_MIGRATIONS: "true"
+      DISABLE_CRON_JOBS_REGISTRATION: "true"
+      STORAGE_TYPE: local
+      ENCRYPTION_KEY: ${TWENTY_ENCRYPTION_KEY}
+      APP_SECRET: ${TWENTY_APP_SECRET:-}
+    depends_on:
+      twenty-db:
+        condition: service_healthy
+      twenty-server:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - recruiting-net
+
+  twenty-db:
+    image: postgres:16
+    container_name: twenty-db
+    volumes:
+      - twenty-db-data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: default
+      POSTGRES_PASSWORD: ${PG_DATABASE_PASSWORD:-postgres}
+      POSTGRES_USER: ${PG_DATABASE_USER:-postgres}
+    healthcheck:
+      test: pg_isready -U ${PG_DATABASE_USER:-postgres} -h localhost -d postgres
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    networks:
+      - recruiting-net
+
+  twenty-redis:
+    image: redis
+    container_name: twenty-redis
+    command: ["--maxmemory-policy", "noeviction"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    networks:
+      - recruiting-net
+
+  # ─── Backend (FastAPI) ───────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ..          # root of the project
+      dockerfile: docker/Dockerfile.backend
+    container_name: openclaw-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      # Bind mount: local backend/ → container /app/
+      # Any file change on your machine instantly reflects inside the container.
+      # uvicorn --reload watches /app and restarts automatically.
+      - ../backend:/app
+    env_file:
+      - ../backend/.env    # Uses the same .env you already have
+    environment:
+      # Override TWENTY_API_URL to use the container name instead of localhost
+      #TWENTY_API_URL: http://twenty-server:3000
+      TWENTY_API_URL: http://host.docker.internal:3000
+    restart: unless-stopped
+    networks:
+      - recruiting-net
+
+  # ─── Frontend (Vite + React) ─────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ..          # root of the project
+      dockerfile: docker/Dockerfile.frontend
+    container_name: openclaw-frontend
+    ports:
+      - "5173:5173"
+    volumes:
+      # Bind mount: local frontend/src → container /app/src
+      # Vite watches for changes and does Hot Module Replacement (HMR) in < 1s.
+      # node_modules is excluded via the anonymous volume trick below.
+      - ../frontend:/app
+      - /app/node_modules  # Anonymous volume: prevents host's node_modules from overwriting container's
+    environment:
+      # Points the frontend to the backend — accessible from the browser (host machine)
+      VITE_API_URL: http://localhost:8000
+      VITE_APP_NAME: "Openclaw Recruiting Platform"
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - recruiting-net
+
+  # ─── Openclaw (FUTURE) ───────────────────────────────────────────────────────
+  # Uncomment this block when Openclaw is ready to be containerized.
+  #
+  # openclaw:
+  #   image: openclaw/openclaw:latest
+  #   container_name: openclaw
+  #   ports:
+  #     - "8080:8080"
+  #   environment:
+  #     - OPENCLAW_API_KEY=${OPENCLAW_API_KEY:-your-openclaw-api-key}
+  #     - TWENTY_API_KEY=${TWENTY_API_KEY}
+  #     - TWENTY_API_URL=http://twenty-server:3000
+  #   volumes:
+  #     - ../openclaw/skills:/app/skills:ro
+  #   restart: unless-stopped
+  #   networks:
+  #     - recruiting-net
+
+# ─── Volumes ─────────────────────────────────────────────────────────────────
+volumes:
+  twenty-db-data:
+  twenty-server-data:
+
+# ─── Network ──────────────────────────────────────────────────────────────────
+networks:
+  recruiting-net:
+    driver: bridge
