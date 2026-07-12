@@ -125,9 +125,7 @@ services:
     env_file:
       - ../backend/.env    # Uses the same .env you already have
     environment:
-      # Override TWENTY_API_URL to use the container name instead of localhost
-      #TWENTY_API_URL: http://twenty-server:3000
-      TWENTY_API_URL: http://host.docker.internal:3000
+      TWENTY_API_URL: http://twenty-server:3000
     restart: unless-stopped
     networks:
       - recruiting-net
@@ -156,23 +154,72 @@ services:
     networks:
       - recruiting-net
 
-  # ─── Openclaw (FUTURE) ───────────────────────────────────────────────────────
-  # Uncomment this block when Openclaw is ready to be containerized.
-  #
-  # openclaw:
-  #   image: openclaw/openclaw:latest
-  #   container_name: openclaw
-  #   ports:
-  #     - "8080:8080"
-  #   environment:
-  #     - OPENCLAW_API_KEY=${OPENCLAW_API_KEY:-your-openclaw-api-key}
-  #     - TWENTY_API_KEY=${TWENTY_API_KEY}
-  #     - TWENTY_API_URL=http://twenty-server:3000
-  #   volumes:
-  #     - ../openclaw/skills:/app/skills:ro
-  #   restart: unless-stopped
-  #   networks:
-  #     - recruiting-net
+  # ─── Openclaw Gateway ────────────────────────────────────────────────────────
+  openclaw:
+    image: ghcr.io/openclaw/openclaw:latest-browser
+    container_name: openclaw
+    env_file:
+      - .env
+    environment:
+      HOME: /home/node
+      OPENCLAW_HOME: /home/node
+      TERM: xterm-256color
+
+      # Keep OpenClaw runtime paths inside the container.
+      OPENCLAW_STATE_DIR: /home/node/.openclaw
+      OPENCLAW_CONFIG_PATH: /home/node/.openclaw/openclaw.json
+      OPENCLAW_CONFIG_DIR: /home/node/.openclaw
+      OPENCLAW_WORKSPACE_DIR: /home/node/.openclaw/workspace
+
+      OPENCLAW_GATEWAY_TOKEN: ${OPENCLAW_GATEWAY_TOKEN:-openclaw-dev-token}
+      OPENCLAW_DISABLE_BONJOUR: "1"
+      TZ: UTC
+
+      # CRM-specific: available to Skills running inside the agent workspace
+      TWENTY_API_KEY: ${TWENTY_API_KEY:-}
+      TWENTY_API_URL: http://twenty-server:3000
+    volumes:
+      - ../openclaw/data:/home/node/.openclaw
+      - ../openclaw/workspaces/default:/home/node/.openclaw/workspace
+      - ../openclaw/secrets/auth-profile:/home/node/.config/openclaw
+    cap_drop:
+      - NET_RAW
+      - NET_ADMIN
+    security_opt:
+      - no-new-privileges:true
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "18789:18789"
+      - "18790:18790"
+      - "3978:3978"
+    init: true
+    restart: unless-stopped
+    command:
+      [
+        "node",
+        "dist/index.js",
+        "gateway",
+        "--bind",
+        "lan",
+        "--port",
+        "18789",
+        "--allow-unconfigured",
+      ]
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:18789/healthz').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - recruiting-net
 
 # ─── Volumes ─────────────────────────────────────────────────────────────────
 volumes:

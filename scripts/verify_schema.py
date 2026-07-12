@@ -57,8 +57,7 @@ def verify_schema():
             },
             "relations": {
                 "listing": "MANY_TO_ONE",
-                "candidate": "MANY_TO_ONE",
-                "candidates": "ONE_TO_MANY"
+                "candidate": "MANY_TO_ONE"
             }
         },
         "interview": {
