@@ -1,5 +1,6 @@
 import logging
 import httpx
+from typing import Dict, Any, Optional, List
 from pathlib import Path
 from elevenlabs.client import ElevenLabs
 from app.settings import settings

@@ -1,13 +1,31 @@
+# ─── Backend Dockerfile ───────────────────────────────────────────────────────
+# Builds the FastAPI (Python) backend for the Openclaw Recruiting Platform.
+# Designed for DEVELOPMENT: uvicorn is started with --reload so any change
+# to the local source files (mounted as a volume) restarts the server instantly.
+# ──────────────────────────────────────────────────────────────────────────────
+
 FROM python:3.11-slim
 
+# Set working directory inside the container
 WORKDIR /app
 
-COPY backend/requirements.txt /app/
+# Install system dependencies needed for psycopg2 (PostgreSQL client)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    libpq-dev \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
 
+# Copy only the requirements first (layer caching: only re-installs if requirements.txt changes)
+COPY backend/requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY backend/app /app/app
+# Copy the backend application code
+COPY backend/ /app/
 
+# Expose the FastAPI port
 EXPOSE 8000
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Start with --reload for hot-reloading during development.
+# Source files are bind-mounted at runtime, so changes reflect immediately.
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
