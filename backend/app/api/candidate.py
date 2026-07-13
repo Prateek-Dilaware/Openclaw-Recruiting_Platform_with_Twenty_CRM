@@ -145,68 +145,69 @@ async def run_candidate_retrospective(candidate_id: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/{candidate_id}/trigger-outbound-call")
-async def trigger_candidate_outbound_call(
-    candidate_id: str,
-    phone: str = Form(...),
-    agent_id: str = Form(...)
-):
-    """Triggers an outbound ElevenLabs call to the candidate's phone."""
-    try:
-        # Fetch candidate details to check for associated requisition
-        candidate = await twenty.get_candidate(candidate_id)
-        
-        # Look for target JD details in candidate's linked requisitions
-        # Twenty's relation is represented as list in python objects
-        cand_reqs = candidate.get("requisitions", [])
-        job_desc = "Senior Developer Role with expertise in backend services, APIs, and databases."
-        job_title = "Senior Developer"
-        
-        if cand_reqs and isinstance(cand_reqs, list) and len(cand_reqs) > 0:
-            req_id = cand_reqs[0].get("id")
-            if req_id:
-                try:
-                    req_details = await twenty.get_requisition(req_id)
-                    job_desc = req_details.get("jobDescription") or job_desc
-                    job_title = req_details.get("jobTitle") or job_title
-                except Exception:
-                    pass
-                    
-        # Truncate description slightly to keep payload compact
-        job_desc_clean = job_desc.strip()[:1000]
-        
-        dynamic_vars = {
-            "job_description": job_desc_clean,
-            "job_title": job_title,
-            "candidate_name": candidate.get("name", "Candidate")
-        }
-        
-        logger.info(f"Outbound call candidate {candidate_id} with variables: {dynamic_vars}")
-        
-        result = await elevenlabs.start_outbound_call(phone, agent_id, dynamic_variables=dynamic_vars)
-        if "error" in result:
-            raise HTTPException(status_code=400, detail=result.get("error"))
-        
-        call_id = result.get("call_id")
-        
-        # Log timeline activity to candidate in Twenty CRM
-        await twenty.add_timeline_activity_to_candidate(
-            candidate_id=candidate_id,
-            title="Outbound Voice Screening Started",
-            content=f"ElevenLabs Call ID: {call_id} initiated to {phone}."
-        )
-        
-        # Update candidate status to SCREENING using Skill
-        await twenty_skill.trigger_workflow(
-            workflow_name_or_id="Candidate Status Change",
-            record_id=candidate_id,
-            target_status="SCREENING",
-            object_name="candidate"
-        )
-        
-        return result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+# @router.post("/{candidate_id}/trigger-outbound-call")
+# async def trigger_candidate_outbound_call(
+#     candidate_id: str,
+#     phone: str = Form(...),
+#     agent_id: str = Form(...)
+# ):
+#     """Triggers an outbound ElevenLabs call to the candidate's phone."""
+#     try:
+#         # Fetch candidate details to check for associated requisition
+#         candidate = await twenty.get_candidate(candidate_id)
+#         
+#         # Look for target JD details in candidate's linked requisitions
+#         # Twenty's relation is represented as list in python objects
+#         cand_reqs = candidate.get("requisitions", [])
+#         job_desc = "Senior Developer Role with expertise in backend services, APIs, and databases."
+#         job_title = "Senior Developer"
+#         
+#         if cand_reqs and isinstance(cand_reqs, list) and len(cand_reqs) > 0:
+#             req_id = cand_reqs[0].get("id")
+#             if req_id:
+#                 try:
+#                     req_details = await twenty.get_requisition(req_id)
+#                     job_desc = req_details.get("jobDescription") or job_desc
+#                     job_title = req_details.get("jobTitle") or job_title
+#                 except Exception:
+#                     pass
+#                     
+#         # Truncate description slightly to keep payload compact
+#         job_desc_clean = job_desc.strip()[:1000]
+#         
+#         dynamic_vars = {
+#             "job_description": job_desc_clean,
+#             "job_title": job_title,
+#             "candidate_name": candidate.get("name", "Candidate")
+#         }
+#         
+#         logger.info(f"Outbound call candidate {candidate_id} with variables: {dynamic_vars}")
+#         
+#         result = await elevenlabs.start_outbound_call(phone, agent_id, dynamic_variables=dynamic_vars)
+#         if "error" in result:
+#             raise HTTPException(status_code=400, detail=result.get("error"))
+#         
+#         call_id = result.get("call_id")
+#         
+#         # Log timeline activity to candidate in Twenty CRM
+#         await twenty.add_timeline_activity_to_candidate(
+#             candidate_id=candidate_id,
+#             title="Outbound Voice Screening Started",
+#             content=f"ElevenLabs Call ID: {call_id} initiated to {phone}."
+#         )
+#         
+#         # Update candidate status to SCREENING using Skill
+#         await twenty_skill.trigger_workflow(
+#             workflow_name_or_id="Candidate Status Change",
+#             record_id=candidate_id,
+#             target_status="SCREENING",
+#             object_name="candidate"
+#         )
+#         
+#         return result
+#     except Exception as e:
+#         raise HTTPException(status_code=500, detail=str(e))
+
 
 @router.post("/{candidate_id}/fetch-latest-web-transcript")
 async def fetch_latest_web_transcript(

@@ -48,3 +48,28 @@ The skills located in the `openclaw/skills/twenty_skill/` directory will automat
 * **Direct CRM (Fallback)**: When `USE_OPENCLAW=false` (default), the platform uses the internal `TwentySkill` client library to perform direct mutations on the CRM database.
 * **OpenClaw Route**: When `USE_OPENCLAW=true`, the platform delegates all CRM operations (`write_field` and `trigger_workflow`) as remote tool calls executed by the OpenClaw API.
 * **Error Resilience**: If the OpenClaw service suffers a connection outage, toggle the flag back to `false` in `.env` to fall back instantly to direct API calls.
+
+---
+
+## Twenty CRM Workflow Automation Setup
+
+To automate outbound calls using Twenty CRM's built-in workflow engine without manually triggering them:
+
+1. **Open Twenty CRM:** Go to **Settings → Workflows** in the UI.
+2. **Create a Workflow:** Name it "Automate Outbound Screening Call".
+3. **Trigger:** Select **Record updated** for the `Candidate` object.
+4. **Condition:** Add a logic branch checking if the updated field `interviewStatus` transitions to `SCREENING` (or similar initial stage).
+5. **Action:** Select **Webhook** (POST request).
+   * Set the target URL to: `http://host.docker.internal:8000/api/v1/webhooks/workflow-trigger` (or `http://localhost:8000/api/v1/webhooks/workflow-trigger` if outside Docker).
+   * Set the body content type to `application/json`.
+   * Pass the following JSON payload template:
+     ```json
+     {
+       "candidate_id": "{{candidate.id}}",
+       "phone": "{{candidate.phone.primaryPhoneNumber}}",
+       "name": "{{candidate.name}}"
+     }
+     ```
+
+Once configured and activated, any candidate status update will automatically prompt the backend to trigger the outbound Conversational AI call via ElevenLabs.
+

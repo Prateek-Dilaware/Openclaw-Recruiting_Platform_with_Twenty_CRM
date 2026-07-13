@@ -664,40 +664,11 @@ function App() {
                     )}
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1.5rem' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1.5rem', marginBottom: '1.5rem' }}>
                     <div className="glass-panel" style={{ background: 'rgba(255, 255, 255, 0.02)', border: '1px solid var(--border-color)', padding: '1rem' }}>
-                      <h4 style={{ fontSize: '0.95rem', marginBottom: '0.5rem', color: 'var(--text-primary)' }}>Method A: Outbound Call (Phone)</h4>
+                      <h4 style={{ fontSize: '0.95rem', marginBottom: '0.5rem', color: 'var(--text-primary)' }}>In-Browser Web Voice (Testing Mode)</h4>
                       <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
-                        Triggers a real phone call to the candidate's registered number.
-                      </p>
-                      <button 
-                        className="btn btn-primary"
-                        style={{ width: '100%', fontSize: '0.85rem', padding: '0.5rem 1rem' }}
-                        onClick={handleTriggerPhoneCall}
-                        disabled={loading || selectedCandidate.interviewStatus === 'APPLIED' || !elevenLabsAgentId}
-                      >
-                        Call Candidate
-                      </button>
-                      
-                      {activeCallId && (
-                        <div style={{ marginTop: '0.75rem', fontSize: '0.8rem', background: 'rgba(0,0,0,0.15)', padding: '0.5rem', borderRadius: '6px' }}>
-                          <div><strong>Call ID:</strong> {activeCallId}</div>
-                          <div style={{ color: 'var(--primary)', marginTop: '0.25rem' }}><strong>Status:</strong> {callStatus}</div>
-                          <button 
-                            className="btn btn-secondary" 
-                            style={{ width: '100%', marginTop: '0.5rem', fontSize: '0.75rem', padding: '0.25rem' }}
-                            onClick={handleFetchCallEvaluation}
-                          >
-                            Fetch Transcript & Evaluate
-                          </button>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="glass-panel" style={{ background: 'rgba(255, 255, 255, 0.02)', border: '1px solid var(--border-color)', padding: '1rem' }}>
-                      <h4 style={{ fontSize: '0.95rem', marginBottom: '0.5rem', color: 'var(--text-primary)' }}>Method B: In-Browser Web Voice</h4>
-                      <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
-                        Opens ElevenLabs widget to speak directly using your computer microphone.
+                        Opens ElevenLabs widget to speak directly using your computer microphone. Outbound phone calls are handled automatically by CRM workflows.
                       </p>
                       <button 
                         className={`btn ${showWebWidget ? 'btn-secondary' : 'btn-primary'}`}
