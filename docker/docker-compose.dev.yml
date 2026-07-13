@@ -5,8 +5,7 @@
 #   2. backend — FastAPI backend (with hot-reload via bind mount)
 #   3. frontend — Vite + React frontend (with HMR via bind mount)
 #
-# Openclaw container is intentionally left out for now (not yet installed).
-# It can be added later by uncommenting the openclaw service block below.
+# Openclaw container is fully integrated and runs alongside the CRM.
 #
 # USAGE:
 #   cd docker
