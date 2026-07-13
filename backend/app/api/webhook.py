@@ -253,3 +253,83 @@ async def receive_elevenlabs_webhook(request: Request):
     except Exception as e:
         logger.error(f"Error processing ElevenLabs webhook: {e}")
         raise HTTPException(status_code=400, detail=str(e))
+
+@router.post("/workflow-trigger")
+async def receive_workflow_trigger(request: Request):
+    """
+    Receives trigger from Twenty CRM workflow automation
+    and initiates outbound interview call via ElevenLabs.
+    """
+    try:
+        payload = await request.json()
+        candidate_id = payload.get("candidate_id")
+        phone = payload.get("phone")
+        candidate_name = payload.get("name")
+        
+        logger.info(f"Workflow trigger received for candidate {candidate_id} ({candidate_name})")
+        
+        if not candidate_id or not phone:
+            raise HTTPException(status_code=400, detail="Missing candidate_id or phone")
+        
+        # Get ElevenLabs agent ID from settings
+        agent_id = getattr(settings, 'ELEVENLABS_AGENT_ID', '')
+        
+        if not agent_id:
+            raise HTTPException(status_code=500, detail="ELEVENLABS_AGENT_ID not configured")
+        
+        # Get candidate's linked requisition for job context
+        candidate = await twenty.get_candidate(candidate_id)
+        job_title = "Senior Developer"
+        job_description = "Senior developer role"
+        
+        try:
+            requisitions = await twenty.get_requisitions()
+            linked_reqs = [r for r in requisitions if (r.get("listingId") or r.get("candidateId")) == candidate_id]
+            if linked_reqs:
+                req = linked_reqs[0]
+                job_title = req.get("jobTitle", job_title)
+                job_description = req.get("jobDescription", job_description)
+        except Exception as e:
+            logger.warning(f"Could not fetch requisition details: {e}")
+        
+        # Prepare dynamic variables for ElevenLabs
+        dynamic_vars = {
+            "job_description": job_description[:1000],
+            "job_title": job_title,
+            "candidate_name": candidate_name or "Candidate"
+        }
+        
+        # Trigger outbound call via ElevenLabs
+        call_result = await elevenlabs.start_outbound_call(phone, agent_id, dynamic_variables=dynamic_vars)
+        
+        if "error" in call_result:
+            raise HTTPException(status_code=400, detail=call_result.get("error"))
+        
+        call_id = call_result.get("call_id")
+        
+        # Log timeline activity
+        await twenty.add_timeline_activity_to_candidate(
+            candidate_id=candidate_id,
+            title="Automated Outbound Call Triggered",
+            content=f"Call ID: {call_id} initiated via workflow automation"
+        )
+        
+        # Update candidate status to SCREENING
+        await twenty_skill.trigger_workflow(
+            workflow_name_or_id="Candidate Status Change",
+            record_id=candidate_id,
+            target_status="SCREENING",
+            object_name="candidate"
+        )
+        
+        return {
+            "status": "success",
+            "call_id": call_id,
+            "candidate_id": candidate_id,
+            "message": "Outbound call triggered via workflow automation"
+        }
+        
+    except Exception as e:
+        logger.error(f"Error processing workflow trigger: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
