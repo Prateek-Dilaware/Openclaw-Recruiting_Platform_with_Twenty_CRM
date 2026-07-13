@@ -21,9 +21,12 @@ dist-ssr
 static/
 
 # OpenClaw
-openclaw/data/
-openclaw/secrets/
+openclaw/data/*
+!openclaw/data/.gitkeep
+openclaw/secrets/*
+!openclaw/secrets/.gitkeep
 openclaw/workspaces/*
 !openclaw/workspaces/default/
 openclaw/workspaces/default/*
+!openclaw/workspaces/default/.gitkeep
 !openclaw/workspaces/default/skills/
