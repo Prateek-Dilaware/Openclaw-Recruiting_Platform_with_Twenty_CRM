@@ -1,6 +1,10 @@
 import logging
 from typing import Dict, Any, List, Optional
 from app.crm_sdk import CRMClient
+from app.crm_sdk.requisition import RequisitionModule
+from app.crm_sdk.candidate import CandidateModule
+from app.crm_sdk.application import ApplicationModule
+from app.crm_sdk.interview import InterviewModule
 
 logger = logging.getLogger(__name__)
 
@@ -10,6 +14,14 @@ class TwentyService:
         # reproduces the previous base-url/auth/timeout/parse/error behavior
         # exactly, so business methods below are unchanged.
         self._client = CRMClient()
+        # Phase 2.1: requisition operations are delegated to the SDK module.
+        self._requisitions = RequisitionModule(self._client)
+        # Phase 2.2: candidate operations are delegated to the SDK module.
+        self._candidates = CandidateModule(self._client)
+        # Phase 2.3: application aggregate (net-new; no prior TwentyService code).
+        self._applications = ApplicationModule(self._client)
+        # Phase 2.4: interview operations are delegated to the SDK module.
+        self._interviews = InterviewModule(self._client)
         # Kept for backwards compatibility with any code that reads these.
         self.base_url = self._client.base_url
         self.headers = self._client.headers
@@ -26,91 +38,59 @@ class TwentyService:
     # ==========================================================
     # Candidates API
     # ==========================================================
+    # Phase 2.2: delegated to app.crm_sdk.candidate.CandidateModule.
+    # Signatures and return values are unchanged; behavior is identical.
     async def get_candidates(self) -> List[Dict[str, Any]]:
-        response = await self._request("GET", "candidates")
-        return response.get("data", {}).get("candidates", [])
+        return await self._candidates.list()
 
     async def get_candidate(self, candidate_id: str) -> Dict[str, Any]:
-        response = await self._request("GET", f"candidates/{candidate_id}")
-        return response.get("data", {}).get("candidate", {})
+        return await self._candidates.get(candidate_id)
 
     async def create_candidate(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        # Formulate phone/email if raw strings are provided
-        payload = data.copy()
-        if "email" in payload and isinstance(payload["email"], str):
-            payload["email"] = {
-                "primaryEmail": payload["email"],
-                "additionalEmails": []
-            }
-        if "phone" in payload and isinstance(payload["phone"], str):
-            payload["phone"] = {
-                "primaryPhoneNumber": payload["phone"],
-                "primaryPhoneCountryCode": "",
-                "primaryPhoneCallingCode": "",
-                "additionalPhones": []
-            }
-        response = await self._request("POST", "candidates", payload)
-        return response.get("data", {}).get("createCandidate", {})
+        return await self._candidates.create(data)
 
     async def update_candidate(self, candidate_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
-        payload = data.copy()
-        if "email" in payload and isinstance(payload["email"], str):
-            payload["email"] = {
-                "primaryEmail": payload["email"],
-                "additionalEmails": []
-            }
-        if "phone" in payload and isinstance(payload["phone"], str):
-            payload["phone"] = {
-                "primaryPhoneNumber": payload["phone"],
-                "primaryPhoneCountryCode": "",
-                "primaryPhoneCallingCode": "",
-                "additionalPhones": []
-            }
-        response = await self._request("PATCH", f"candidates/{candidate_id}", payload)
-        return response.get("data", {}).get("updateCandidate", {})
+        return await self._candidates.update(candidate_id, data)
 
     async def delete_candidate(self, candidate_id: str) -> None:
-        await self._request("DELETE", f"candidates/{candidate_id}")
+        await self._candidates.delete(candidate_id)
 
     # ==========================================================
     # Requisitions API
     # ==========================================================
+    # Phase 2.1: delegated to app.crm_sdk.requisition.RequisitionModule.
+    # Signatures and return values are unchanged; behavior is identical.
     async def get_requisitions(self) -> List[Dict[str, Any]]:
-        response = await self._request("GET", "requistions")
-        return response.get("data", {}).get("requistions", [])
+        return await self._requisitions.list()
 
     async def get_requisition(self, requisition_id: str) -> Dict[str, Any]:
-        response = await self._request("GET", f"requistions/{requisition_id}")
-        return response.get("data", {}).get("requistion", {})
+        return await self._requisitions.get(requisition_id)
 
     async def create_requisition(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        response = await self._request("POST", "requistions", data)
-        return response.get("data", {}).get("createRequistion", {})
+        return await self._requisitions.create(data)
 
     async def update_requisition(self, requisition_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
-        response = await self._request("PATCH", f"requistions/{requisition_id}", data)
-        return response.get("data", {}).get("updateRequistion", {})
+        return await self._requisitions.update(requisition_id, data)
 
     async def delete_requisition(self, requisition_id: str) -> None:
-        await self._request("DELETE", f"requistions/{requisition_id}")
+        await self._requisitions.delete(requisition_id)
 
     # ==========================================================
     # Interviews API
     # ==========================================================
+    # Phase 2.4: delegated to app.crm_sdk.interview.InterviewModule.
+    # Signatures and return values are unchanged; behavior is identical.
     async def get_interviews(self) -> List[Dict[str, Any]]:
-        response = await self._request("GET", "interviews")
-        return response.get("data", {}).get("interviews", [])
+        return await self._interviews.list()
 
     async def get_interview(self, interview_id: str) -> Dict[str, Any]:
-        response = await self._request("GET", f"interviews/{interview_id}")
-        return response.get("data", {}).get("interview", {})
+        return await self._interviews.get(interview_id)
 
     async def create_interview(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        response = await self._request("POST", "interviews", data)
-        return response.get("data", {}).get("createInterview", {})
+        return await self._interviews.create(data)
 
     async def delete_interview(self, interview_id: str) -> None:
-        await self._request("DELETE", f"interviews/{interview_id}")
+        await self._interviews.delete(interview_id)
 
     # ==========================================================
     # Custom Notes, Attachments, and Activities
@@ -139,36 +119,16 @@ class TwentyService:
         response = await self._request("POST", "notes", payload)
         return response.get("data", {}).get("createNote", {})
 
+    # Phase 2.2 (refinement): candidate-owned sub-resources delegated to the
+    # Candidate aggregate module. Signatures/behavior unchanged.
     async def link_note_to_candidate(self, note_id: str, candidate_id: str) -> Dict[str, Any]:
-        payload = {
-            "noteId": note_id,
-            "targetCandidateId": candidate_id
-        }
-        response = await self._request("POST", "noteTargets", payload)
-        return response.get("data", {}).get("createNoteTarget", {})
+        return await self._candidates.link_note(note_id, candidate_id)
 
     async def add_note_to_candidate(self, candidate_id: str, title: str, content: str) -> Dict[str, Any]:
-        note = await self.create_note(title, content)
-        note_id = note.get("id")
-        await self.link_note_to_candidate(note_id, candidate_id)
-        return note
+        return await self._candidates.add_note(candidate_id, title, content)
 
     async def add_attachment_to_candidate(self, candidate_id: str, name: str, url: str) -> Dict[str, Any]:
-        payload = {
-            "name": name,
-            "fullPath": url,
-            "file": {"url": url, "name": name},
-            "targetCandidateId": candidate_id,
-            "fileCategory": "OTHER"
-        }
-        response = await self._request("POST", "attachments", payload)
-        return response.get("data", {}).get("createAttachment", {})
+        return await self._candidates.add_attachment(candidate_id, name, url)
 
     async def add_timeline_activity_to_candidate(self, candidate_id: str, title: str, content: str) -> Dict[str, Any]:
-        payload = {
-            "name": title,
-            "properties": {"details": content},
-            "targetCandidateId": candidate_id
-        }
-        response = await self._request("POST", "timelineActivities", payload)
-        return response.get("data", {}).get("createTimelineActivity", {})
+        return await self._candidates.add_timeline_activity(candidate_id, title, content)
