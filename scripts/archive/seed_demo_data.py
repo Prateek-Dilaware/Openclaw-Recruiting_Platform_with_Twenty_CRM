@@ -6,7 +6,10 @@ from pathlib import Path
 scripts_dir = Path(__file__).resolve().parent
 sys.path.append(str(scripts_dir))
 
-from create_objects import load_twenty_env, get_headers
+try:
+    from .create_objects import load_twenty_env, get_headers
+except ImportError:  # Supports direct historical execution from this folder.
+    from create_objects import load_twenty_env, get_headers
 
 def seed_data():
     print("==================================================")

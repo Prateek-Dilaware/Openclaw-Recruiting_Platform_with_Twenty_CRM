@@ -1,47 +1,27 @@
 import logging
-import httpx
 from typing import Dict, Any, List, Optional
-from app.settings import settings
+from app.crm_sdk import CRMClient
 
 logger = logging.getLogger(__name__)
 
 class TwentyService:
     def __init__(self):
-        self.base_url = settings.TWENTY_API_URL.rstrip("/")
-        self.headers = {
-            "Authorization": f"Bearer {settings.TWENTY_API_KEY}",
-            "Content-Type": "application/json"
-        }
+        # Phase 1.2: transport is delegated to the CRM SDK client. The client
+        # reproduces the previous base-url/auth/timeout/parse/error behavior
+        # exactly, so business methods below are unchanged.
+        self._client = CRMClient()
+        # Kept for backwards compatibility with any code that reads these.
+        self.base_url = self._client.base_url
+        self.headers = self._client.headers
         logger.info(f"Initialized TwentyService with base URL: {self.base_url}")
 
     async def _request(self, method: str, path: str, json_data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        """Helper to send HTTP requests to Twenty CRM REST API."""
-        url = f"{self.base_url}/rest/{path.lstrip('/')}"
-        logger.info(f"Twenty CRM Request: {method} {url}")
-        
-        async with httpx.AsyncClient() as client:
-            try:
-                response = await client.request(
-                    method=method,
-                    url=url,
-                    headers=self.headers,
-                    json=json_data,
-                    timeout=15.0
-                )
-                logger.info(f"Twenty CRM Response Status: {response.status_code}")
-                
-                # Check for HTTP errors
-                response.raise_for_status()
-                
-                if response.status_code == 204:
-                    return {}
-                return response.json()
-            except httpx.HTTPStatusError as e:
-                logger.error(f"Twenty CRM HTTP Error: {e.response.status_code} - {e.response.text}")
-                raise Exception(f"Twenty CRM Error: {e.response.status_code} - {e.response.text}")
-            except Exception as e:
-                logger.error(f"Twenty CRM Request Failed: {e}")
-                raise Exception(f"Failed to communicate with Twenty CRM: {e}")
+        """Send an HTTP request to the Twenty CRM REST API via the CRM SDK client.
+
+        Behavior (URL, headers, timeout, 204 handling, JSON parsing, and error
+        message text) is identical to the previous inline implementation.
+        """
+        return await self._client.request(method, path, json_data)
 
     # ==========================================================
     # Candidates API

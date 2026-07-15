@@ -4,10 +4,10 @@ import sys
 from pathlib import Path
 
 # Add scripts directory to path to allow importing modules
-scripts_dir = Path(__file__).resolve().parent.parent / "scripts"
+scripts_dir = Path(__file__).resolve().parent.parent / "scripts" / "schema_v2"
 sys.path.append(str(scripts_dir))
 
-from create_objects import load_twenty_env, get_headers
+from schema_utils import get_headers, load_twenty_env
 
 async def test_workflow():
     print("==================================================")
