@@ -2,16 +2,28 @@
 
 This directory contains the integration skills and isolated runtime structure for the OpenClaw CRM integration.
 
+## Canonical Local Development Workflow
+
+Use the integrated Docker stack defined in docker/docker-compose.dev.yml.
+
+```bash
+cd docker
+docker compose -f docker-compose.dev.yml up --build
+```
+
+This starts the full local stack, including OpenClaw, the FastAPI backend, the React frontend, Twenty CRM, PostgreSQL, and Redis.
+
 ## First-Time Setup & Onboarding
 
-When a developer starts the project for the first time using `docker compose -f docker-compose.dev.yml up -d`, the OpenClaw container starts entirely unconfigured.
+After the stack is running, OpenClaw starts unconfigured until you complete onboarding.
 
-To perform the initial setup:
-1. Open your browser to **http://localhost:18789**
-2. You will be greeted by an **Auth Required** page.
-3. In the **Gateway Token** box, paste your configured token.
-   - If you copied `.env.example` to `.env`, check your `OPENCLAW_GATEWAY_TOKEN` variable.
-   - If you didn't set a token, it falls back to the default: `openclaw-dev-token`
-4. Click **Connect** and follow the onboarding wizard.
+1. Open your browser to http://localhost:18789
+2. You will be greeted by an Auth Required page.
+3. In the Gateway Token box, paste your configured token.
+   - If you copied docker/.env.example to docker/.env, check the OPENCLAW_GATEWAY_TOKEN value.
+   - If you did not set a token, the fallback value is openclaw-dev-token.
+4. Click Connect and follow the onboarding wizard.
 
-Once onboarding is finished, OpenClaw will generate its `openclaw.json` config inside `data/` (which is safely gitignored so it doesn't pollute the repository).
+Once onboarding is finished, OpenClaw generates its openclaw.json configuration inside the data/ directory, which is safely gitignored.
+
+> The legacy compose files docker/docker-compose.yml and docker/docker-compose.openclaw.yml are retained for rollback/reference only; they are not the default development entry point.

@@ -1,77 +1,71 @@
 # Setup Guide
 
-This guide covers how to get the full Openclaw Recruiting Platform stack running locally using Docker.
+This guide covers the canonical local development workflow for the OpenClaw Recruiting Platform. The active stack is defined in docker/docker-compose.dev.yml.
 
 ## Prerequisites
 
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) installed and running
-- That's it — no Python or Node.js required on your host machine!
+- Docker Desktop installed and running
+- Optional: OpenSSL if you want to generate local secrets manually
 
----
-
-## Quick Start (Recommended — Full Docker Setup)
-
-All services (Twenty CRM, Backend, Frontend) run together with a single command.
+## Quick Start
 
 ### 1. Configure Environment Variables
 
 ```bash
-# Copy the template
-cp docker/.env.example docker/.env
-```
-
-Open `docker/.env` and fill in the required values:
-- `PG_DATABASE_PASSWORD` — set a secure password
-- `TWENTY_ENCRYPTION_KEY` — generate with: `openssl rand -base64 32` (or use the default for local dev)
-
-Then copy the backend env template:
-```bash
-cp backend/.env.example backend/.env
-```
-
-Open `backend/.env` and fill in your API keys:
-- `GEMINI_API_KEY` — your Google Gemini key
-- `ELEVENLABS_API_KEY` — your ElevenLabs key
-- `TWENTY_API_KEY` — generated from Twenty CRM settings after first boot
-
-> **Note:** `TWENTY_API_URL` is automatically set to `http://twenty-server:3000` inside Docker — you don't need to change it.
-
-### 2. Start All Services
-
-```bash
 cd docker
+cp .env.example .env
+cp ../backend/.env.example ../backend/.env
+```
+
+Edit docker/.env and fill in the required values:
+- PG_DATABASE_PASSWORD — set a secure password
+- TWENTY_ENCRYPTION_KEY — generate with `openssl rand -base64 32` or use the default for local development
+- OPENCLAW_GATEWAY_TOKEN — optional, but recommended for first-time OpenClaw onboarding
+
+Then edit backend/.env and configure the backend API keys you need. The repo supports different LLM providers; set the credentials that match your chosen provider, for example OPENROUTER_API_KEY or GEMINI_API_KEY, plus ELEVENLABS_API_KEY if you want voice features.
+
+> TWENTY_API_URL is set automatically inside Docker to point at the Twenty CRM container, so you normally do not need to change it.
+
+For a full breakdown of every configuration file and variable ownership, see [docs/configuration.md](configuration.md).
+
+### 2. Start the Full Stack
+
+```bash
 docker compose -f docker-compose.dev.yml up --build
 ```
 
-Wait for all containers to become healthy (first run takes ~2-3 minutes to pull images).
+Wait for the containers to become healthy. The first run can take a few minutes while images are pulled.
 
 ### 3. Access the Services
 
-| Service      | URL                       |
-|-------------|---------------------------|
-| Twenty CRM  | http://localhost:3000     |
-| Backend API | http://localhost:8000     |
-| API Docs    | http://localhost:8000/docs|
-| Frontend    | http://localhost:5173     |
+| Service | URL |
+| --- | --- |
+| Twenty CRM | http://localhost:3000 |
+| Backend API | http://localhost:8000 |
+| API Docs | http://localhost:8000/docs |
+| Frontend | http://localhost:5173 |
+| OpenClaw UI | http://localhost:18789 |
 
 ### 4. First-Time Twenty CRM Setup
 
 1. Open http://localhost:3000
 2. Create your workspace and admin account
-3. Go to **Settings → API & Webhooks** and generate an API key
-4. Copy the key into `backend/.env` as `TWENTY_API_KEY`
+3. Go to Settings → API & Webhooks and generate an API key
+4. Copy the key into backend/.env as TWENTY_API_KEY
 5. Restart the backend container: `docker compose -f docker-compose.dev.yml restart backend`
 
-### 5. Set Up Custom Objects in Twenty CRM
+### 5. Provision CRM Schema V2
 
-After first boot, manually create the required custom objects in the Twenty CRM UI under **Settings → Data Model**:
-- `Candidate` — with fields: name, email, phone, resumeUrl, transcript, sentiment, interviewStatus, overallScore
-- `Requistion` — with fields: name, jobTitle, department, jobDescription, requiredSkills, experience, location, employmentType, status
-- `Interview` — with fields: name, candidateId
+Do not create recruiting objects manually. Schema V2 is provisioned by the
+idempotent scripts in [`../scripts/schema_v2/README.md`](../scripts/schema_v2/README.md).
+Follow the documented order to remove the legacy prototype schema, recreate the
+six Schema V2 objects, configure workflow drafts, seed demo data, and verify the
+result.
 
----
+> The historical prototype scripts are retained under `scripts/archive/` for
+> reference only. Do not run them against Schema V2.
 
-## Hot Reload (Development)
+## Hot Reload
 
 Both backend and frontend support live reloading without rebuilding the container:
 
@@ -96,14 +90,6 @@ docker compose -f docker-compose.dev.yml down -v
 
 ## Troubleshooting
 
-**Backend can't connect to Twenty CRM:**
-- Make sure `TWENTY_API_KEY` is set in `backend/.env`
-- Check that the `twenty-server` container is healthy: `docker compose -f docker-compose.dev.yml ps`
-
-**Frontend shows "Cannot connect to backend":**
-- The frontend uses `VITE_API_URL=http://localhost:8000` which points to your host machine
-- Make sure the backend container is running and port 8000 is accessible
-
-**Port conflicts:**
-- Twenty CRM uses port `3000`, backend uses `8000`, frontend uses `5173`
-- If any are taken, edit the port mappings in `docker-compose.dev.yml`
+- Backend cannot connect to Twenty CRM: confirm TWENTY_API_KEY is present in backend/.env and that the twenty-server container is healthy with `docker compose -f docker-compose.dev.yml ps`.
+- Frontend shows Cannot connect to backend: make sure the backend container is running and that port 8000 is reachable.
+- Port conflicts: Twenty CRM uses port 3000, the backend uses 8000, the frontend uses 5173, and OpenClaw uses 18789. Adjust the mappings in docker/docker-compose.dev.yml if any of those ports are already in use.

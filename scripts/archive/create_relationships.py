@@ -2,7 +2,10 @@ import os
 import sys
 import httpx
 from pathlib import Path
-from create_objects import load_twenty_env, get_headers
+try:
+    from .create_objects import load_twenty_env, get_headers
+except ImportError:  # Supports direct historical execution from this folder.
+    from create_objects import load_twenty_env, get_headers
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 

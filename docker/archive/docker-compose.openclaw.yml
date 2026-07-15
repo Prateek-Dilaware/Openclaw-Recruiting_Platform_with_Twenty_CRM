@@ -1,3 +1,11 @@
+------------------------------------------------
+LEGACY FILE
+This compose file is retained only for historical reference.
+The active development stack is:
+docker-compose.dev.yml
+Do not use this compose file for normal development.
+------------------------------------------------
+
 name: openclaw-twenty-integration
  
 services:

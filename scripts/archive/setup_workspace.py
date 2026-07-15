@@ -7,9 +7,14 @@ from pathlib import Path
 scripts_dir = Path(__file__).resolve().parent
 sys.path.append(str(scripts_dir))
 
-from create_objects import create_objects
-from create_fields import create_fields
-from create_relationships import create_relationships
+try:
+    from .create_objects import create_objects
+    from .create_fields import create_fields
+    from .create_relationships import create_relationships
+except ImportError:  # Supports direct historical execution from this folder.
+    from create_objects import create_objects
+    from create_fields import create_fields
+    from create_relationships import create_relationships
 
 def main():
     print("==================================================")

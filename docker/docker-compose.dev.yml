@@ -184,6 +184,7 @@ services:
       - ../openclaw/data:/home/node/.openclaw
       - ../openclaw/workspaces/default:/home/node/.openclaw/workspace
       - ../openclaw/secrets/auth-profile:/home/node/.config/openclaw
+      - ../openclaw/skills:/home/node/.openclaw/skills:ro
     cap_drop:
       - NET_RAW
       - NET_ADMIN

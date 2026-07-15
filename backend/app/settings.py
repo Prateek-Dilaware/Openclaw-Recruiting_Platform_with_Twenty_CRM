@@ -28,14 +28,11 @@ class Settings(BaseSettings):
 
     TWENTY_API_KEY: str = ""
 
+    # Used only by the OpenClaw LLM provider path in llm_service.py
+    # (LLM_PROVIDER=openclaw). Not related to CRM execution routing.
     OPENCLAW_URL: str = ""
 
     LLM_PROVIDER: str = "gemini"
-
-    # OpenClaw settings (new)
-    USE_OPENCLAW: bool = False
-    OPENCLAW_API_URL: str = "http://openclaw:18789"
-    OPENCLAW_API_KEY: str = ""
 
     class Config:
         import os
