@@ -1,14 +1,20 @@
-"""CRM SDK — reusable infrastructure foundation.
+"""CRM SDK — reusable infrastructure foundation + business entity modules.
 
-Phase 1.2 deliverable: a stable transport/config/auth/validation/metadata/router
-foundation extracted from the working `TwentyService` REST implementation.
+Foundation (Phase 1.2): a stable transport/config/auth/validation/metadata/router
+layer extracted from the working `TwentyService` REST implementation.
 
-This package contains **no recruiting business logic**. Business objects
-(Candidate, Requisition, Application, Interview, Evaluation, Offer, Search,
-Workflow) migrate onto this foundation in future phases.
+Business entity modules (Milestone 2, in progress) encapsulate one CRM entity
+each and delegate transport to the shared `CRMClient`:
 
-`TwentyService` consumes `CRMClient` internally; all other modules are foundation
-scaffolding for upcoming phases.
+    Foundation : client, config, auth, exceptions, models, validators,
+                 metadata, utility, router
+    Business   : requisition ✅, candidate ✅, application ⏳, interview ⏳,
+                 evaluation ⏳, offer ⏳, search ⏳, workflow ⏳
+
+See ``MODULE_INDEX.md`` in this package for the authoritative map, per-module
+status, and the required module pattern.
+
+`TwentyService` consumes these modules internally as a thin delegation layer.
 """
 
 from __future__ import annotations
@@ -27,7 +33,13 @@ from app.crm_sdk.exceptions import (
     ValidationError,
 )
 from app.crm_sdk.metadata import MetadataProvider, MetadataRegistry
+from app.crm_sdk.application import ApplicationModule
+from app.crm_sdk.candidate import CandidateModule
+from app.crm_sdk.evaluation import EvaluationModule
+from app.crm_sdk.interview import InterviewModule
 from app.crm_sdk.models import APIResponse, ErrorResponse, Pagination, RequestContext
+from app.crm_sdk.offer import OfferModule
+from app.crm_sdk.requisition import RequisitionModule
 from app.crm_sdk.router import CRMRouter
 
 __all__ = [
@@ -49,4 +61,10 @@ __all__ = [
     "MetadataProvider",
     "MetadataRegistry",
     "CRMRouter",
+    "RequisitionModule",
+    "CandidateModule",
+    "ApplicationModule",
+    "InterviewModule",
+    "EvaluationModule",
+    "OfferModule",
 ]
