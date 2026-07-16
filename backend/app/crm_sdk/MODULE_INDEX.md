@@ -38,8 +38,8 @@ crm_sdk/
 ├── interview.py       # InterviewModule      ✅ implemented (Phase 2.4)
 ├── evaluation.py      # EvaluationModule     ✅ implemented (Phase 2.5)
 ├── offer.py           # OfferModule          ✅ implemented (Phase 2.6)
-├── search.py          # SearchModule         ⏳ planned  (Phase 2.7)
-└── workflow.py        # WorkflowModule       ⏳ planned  (Phase 2.8)
+├── search.py          # SearchModule         ✅ implemented (Phase 2.7) — query service (read-only)
+└── workflow.py        # WorkflowModule       ✅ implemented (Phase 2.8) — thin Twenty workflow transport
 ```
 
 ---
@@ -75,8 +75,8 @@ delegates to these modules (thin delegation layer).
 | `interview.py` | `InterviewModule` | **Interview aggregate** | `interviews` | ✅ | CRUD (list/get/create/delete verbatim; `update` additive) + `schedule`/`reschedule`/`cancel`/`complete` (single-field `interviewStatus` PATCH). Data-only — no calendar/email. |
 | `evaluation.py` | `EvaluationModule` | **Evaluation aggregate** | `evaluations` (+ notes/attachments/timeline) | ✅ | Native (Schema V2). CRUD + `approve`(status=FINAL)/`recommend`/`hold`/`reject`(recommendation) + sub-resources via shared helper (`targetEvaluationId`). |
 | `offer.py` | `OfferModule` | **Offer aggregate** | `offers` (+ notes/attachments/timeline) | ✅ | Native (Schema V2). CRUD + `approve`/`send`/`accept`/`decline`/`withdraw` (offerStatus; withdraw→DRAFT, no WITHDRAWN in schema) + sub-resources (`targetOfferId`). Data-only. |
-| `search.py` | `SearchModule` | (cross-entity read) | n/a | ⏳ | Query/filter helpers. |
-| `workflow.py` | `WorkflowModule` | Workflow | `workflows` | ⏳ | Trigger only; no orchestration in SDK. |
+| `search.py` | `SearchModule` | **query service (read-only)** | all recruiting collections | ✅ | Not an aggregate. `search_candidates/requisitions/applications/interviews/evaluations/offers` with filters/limit/offset/sort_by/sort_order → private `_search_collection`. GET-only; deterministic (no AI/ranking). |
+| `workflow.py` | `WorkflowModule` | **workflow transport** | `workflows`, `workflowRuns` | ✅ | Thin wrapper. `list`/`get` (definitions) + `trigger` (POST workflowRuns) + `status`/`history` (runs). No `cancel` (unsupported by Twenty REST). No orchestration. |
 
 ---
 
@@ -139,7 +139,8 @@ class <Entity>Module:
 | Application | ✅ `ApplicationModule` (native; nothing to delegate from `TwentyService`) |
 | Evaluation | ✅ `EvaluationModule` (native SDK module) |
 | Offer | ✅ `OfferModule` (native SDK module) |
-| Search / Workflow | ❌ future phases |
+| Search | ✅ `SearchModule` (native query service, read-only) |
+| Workflow | ✅ `WorkflowModule` (native Twenty workflow transport) |
 
 ---
 
@@ -147,7 +148,7 @@ class <Entity>Module:
 
 ```
 2.1 Requisition ✅ → 2.2 Candidate ✅ → 2.3 Application ✅ → 2.4 Interview ✅
-→ 2.5 Evaluation ✅ → 2.6 Offer ✅ → 2.7 Search → 2.8 Workflow
+→ 2.5 Evaluation ✅ → 2.6 Offer ✅ → 2.7 Search ✅ → 2.8 Workflow ✅  (Milestone 2 COMPLETE)
 ```
 
 *Update this index whenever a module is added or its status changes.*

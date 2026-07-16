@@ -41,6 +41,8 @@ from app.crm_sdk.models import APIResponse, ErrorResponse, Pagination, RequestCo
 from app.crm_sdk.offer import OfferModule
 from app.crm_sdk.requisition import RequisitionModule
 from app.crm_sdk.router import CRMRouter
+from app.crm_sdk.search import SearchModule
+from app.crm_sdk.workflow import WorkflowModule
 
 __all__ = [
     "CRMClient",
@@ -67,4 +69,6 @@ __all__ = [
     "InterviewModule",
     "EvaluationModule",
     "OfferModule",
+    "SearchModule",
+    "WorkflowModule",
 ]
