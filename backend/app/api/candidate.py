@@ -5,7 +5,7 @@ from app.services.twenty_service import TwentyService
 from app.services.twenty_skill import TwentySkill
 from app.services.elevenlabs_service import ElevenLabsService
 from app.agents.scheduling_agent import SchedulingAgent
-from app.agents.interview_agent import InterviewAgent
+from backend.archieve.interview_agent import InterviewAgent
 from app.agents.retrospective_agent import RetrospectiveAgent
 import os
 import logging

@@ -13,8 +13,11 @@ if (-not $PluginRoot) {
 }
 
 $scriptPath = Join-Path $PSScriptRoot "test_twenty_metadata_contract.mjs"
+$writeScriptPath = Join-Path $PSScriptRoot "test_twenty_write_contract.mjs"
 $patchPath = Join-Path $PSScriptRoot "patch_twenty_metadata_compatibility.mjs"
 docker cp $patchPath "openclaw:/tmp/patch_twenty_metadata_compatibility.mjs"
 docker exec -e "TWENTY_OPENCLAW_PLUGIN_ROOT=$PluginRoot" openclaw node /tmp/patch_twenty_metadata_compatibility.mjs
 docker cp $scriptPath "openclaw:/tmp/test_twenty_metadata_contract.mjs"
 docker exec -e "TWENTY_OPENCLAW_PLUGIN_ROOT=$PluginRoot" openclaw node --test /tmp/test_twenty_metadata_contract.mjs
+docker cp $writeScriptPath "openclaw:/tmp/test_twenty_write_contract.mjs"
+docker exec -e "TWENTY_OPENCLAW_PLUGIN_ROOT=$PluginRoot" openclaw node --test /tmp/test_twenty_write_contract.mjs

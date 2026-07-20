@@ -9,6 +9,9 @@ if (!pluginRoot) {
 
 const metadataPath = join(pluginRoot, "tools", "metadata.js");
 const workspacePath = join(pluginRoot, "tools", "workspace.js");
+const recordsPath = join(pluginRoot, "tools", "records.js");
+const clientPath = join(pluginRoot, "twenty-client.js");
+const factoryPath = join(pluginRoot, "tools", "_factory.js");
 
 const metadataHelpers = `// Twenty v2.21+ returns the new direct REST metadata format:
 // { data: [...] } for lists and an object directly for GET /:id. Older
@@ -59,6 +62,9 @@ function replaceRequired(source, from, to, file) {
 
 let metadata = await readFile(metadataPath, "utf8");
 let workspace = await readFile(workspacePath, "utf8");
+let records = await readFile(recordsPath, "utf8");
+let client = await readFile(clientPath, "utf8");
+let factory = await readFile(factoryPath, "utf8");
 
 if (!metadata.includes("function metadataList(")) {
   metadata = metadata.replace("// Permissive icon naming guidance", `${metadataHelpers}// Permissive icon naming guidance`);
@@ -77,4 +83,38 @@ if (!workspace.includes("function metadataObjects(")) {
   await writeFile(workspacePath, workspace);
 }
 
-console.log("Applied Twenty metadata envelope compatibility patch.");
+if (!records.includes("function assertNonEmptyCreateData(")) {
+  const createGuard = `/**
+ * A generic create with no fields is syntactically valid JSON but never a
+ * meaningful CRM operation. Twenty accepts it and creates a blank record,
+ * so reject it locally before the request client can reach the network.
+ */
+function assertNonEmptyCreateData(data, entity) {
+    if (!data || typeof data !== "object" || Array.isArray(data) || Object.keys(data).length === 0) {
+        throw new Error(\`Refused to create \\\${entity}: data must contain at least one record field. No HTTP request was made.\`);
+    }
+}
+`;
+  records = records.replace("/**\n * Twenty wraps every write/get response", `${createGuard}/**\n * Twenty wraps every write/get response`);
+  records = replaceRequired(records, "additionalProperties: true,\n        description: \"Record fields.", "additionalProperties: true,\n        minProperties: 1,\n        description: \"Record fields.", recordsPath);
+  records = replaceRequired(records, "assertValidEntity(params.entity);\n                const resp = await c.request(\"POST\", `/rest/\${params.entity}`, { body: params.data, signal });", "assertValidEntity(params.entity);\n                assertNonEmptyCreateData(params.data, params.entity);\n                const resp = await c.request(\"POST\", `/rest/\${params.entity}`, { body: params.data, signal });", recordsPath);
+  await writeFile(recordsPath, records);
+}
+
+if (!client.includes("const canRetry = method === \"GET\";")) {
+  client = replaceRequired(client, "this.logger.debug?.(`${spanName} start` +\n                (body ? ` body=${body.slice(0, 200)}` : \"\"));", "const bodySummary = opts.body && typeof opts.body === \"object\" && !Array.isArray(opts.body)\n                ? ` fields=[${Object.keys(opts.body).join(\",\")}] fieldCount=${Object.keys(opts.body).length}`\n                : body ? \" body=<redacted>\" : \"\";\n            this.logger.debug?.(`${spanName} start${bodySummary}`);", clientPath);
+  client = replaceRequired(client, "if (!RETRY_STATUSES.has(resp.status) || attempt === MAX_RETRIES) {", "const canRetry = method === \"GET\";\n            if (!canRetry || !RETRY_STATUSES.has(resp.status) || attempt === MAX_RETRIES) {", clientPath);
+  await writeFile(clientPath, client);
+}
+
+if (!factory.includes("def.run(params, client, signal, _toolCallId)")) {
+  factory = replaceRequired(factory, "const data = await def.run(params, client, signal);", "const data = await def.run(params, client, signal, _toolCallId);", factoryPath);
+  await writeFile(factoryPath, factory);
+}
+
+if (!records.includes("twenty_record_create callId=")) {
+  records = replaceRequired(records, "run: async (params, c, signal) => {\n                assertValidEntity(params.entity);\n                assertNonEmptyCreateData(params.data, params.entity);", "run: async (params, c, signal, toolCallId) => {\n                assertValidEntity(params.entity);\n                assertNonEmptyCreateData(params.data, params.entity);\n                c.logger?.debug?.(`twenty_record_create callId=${toolCallId} entity=${params.entity} endpoint=/rest/${params.entity} fields=[${Object.keys(params.data).join(\",\")}] fieldCount=${Object.keys(params.data).length}`);", recordsPath);
+  await writeFile(recordsPath, records);
+}
+
+console.log("Applied Twenty metadata compatibility and create-safety patches.");
