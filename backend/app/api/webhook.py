@@ -5,7 +5,7 @@ from typing import Dict, Any
 from app.services.twenty_service import TwentyService
 from app.services.crm_service import CRMService
 from app.services.elevenlabs_service import ElevenLabsService
-from app.agents.interview_agent import InterviewAgent
+from backend.archieve.interview_agent import InterviewAgent
 from app.agents.jd_agent import JDAgent
 from app.agents.scheduling_agent import SchedulingAgent
 from app.settings import settings
