@@ -11,7 +11,9 @@ ENV/
 # Node
 node_modules/
 dist/
+dist-test/
 dist-ssr
+*.tsbuildinfo
 *.local
 
 # IDEs
@@ -33,3 +35,18 @@ openclaw/workspaces/default/*
 
 # Reports 
 Reports/
+
+# ------------------------------------------------------------------------------
+# Maintained plugins (plugins/*) — TRACK SOURCE, IGNORE BUILD ARTIFACTS.
+#
+# The maintained Twenty plugin (plugins/twenty-plugin) is canonical source and
+# MUST be committed: src/, test/, package.json, package-lock.json,
+# openclaw.plugin.json, tsconfig*.json, README/CHANGELOG/LICENSE, docs/,
+# scripts/. Generated artifacts are rebuilt by the deploy pipeline and are
+# intentionally NOT tracked. The global rules above already ignore these
+# anywhere in the tree; these entries make the intent explicit for plugins/.
+# ------------------------------------------------------------------------------
+plugins/**/dist/
+plugins/**/dist-test/
+plugins/**/node_modules/
+plugins/**/*.tsbuildinfo

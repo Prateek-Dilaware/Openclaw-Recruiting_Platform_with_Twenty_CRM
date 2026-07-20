@@ -82,19 +82,41 @@ The runtime plugin now:
    resulting workflow run and record state. Do not bypass workflow execution
    with a direct status update unless an explicit policy permits it.
 
+## Migration (2026-07-20): patch retired, fix absorbed into the maintained plugin
+
+The Twenty plugin is now **maintained in this repository** at
+`plugins/twenty-plugin` (package `@crm/twenty-plugin`, vendored from
+`@lacneu/twenty-openclaw@0.8.4`). The metadata response-envelope
+compatibility described above — plus the empty-write safety guards — are now
+**part of the plugin source**, not an external runtime patch:
+
+| Concern | Absorbed into |
+| --- | --- |
+| Direct-array vs legacy metadata list envelope | `src/tools/metadata.ts` (`metadataList`), `src/tools/workspace.ts` (`metadataObjects`) |
+| Direct-object vs legacy `data.object`/`data.field` | `src/tools/metadata.ts` (`metadataItem`) |
+| Empty create/update rejected before HTTP | `src/tools/records.ts` (`assertNonEmptyWriteData` + `minProperties:1`) |
+| No-retry on non-GET writes, redacted debug logs | `src/twenty-client.ts` |
+
+The former runtime patch `tests/openclaw/patch_twenty_metadata_compatibility.mjs`
+has been **deleted**. Deployment is now:
+
+```powershell
+# Build + stage a complete artifact (with production node_modules) and install
+./scripts/twenty-plugin/deploy_twenty_plugin.ps1
+docker restart openclaw
+
+# Live, non-mutating verification against the deployed artifact
+./scripts/twenty-plugin/verify_twenty_plugin.ps1
+```
+
 ## Regression test
 
-Run the local plugin contract regression suite:
+Run the contract regression suite against the deployed maintained plugin
+(no patching — the fix is in source):
 
 ```powershell
 ./tests/openclaw/validate_twenty_plugin.ps1
 ```
-
-The command first applies `patch_twenty_metadata_compatibility.mjs` to the
-OpenClaw-managed package, then runs the tests. The package is installed under
-the ignored `openclaw/data/` runtime state, so editing it manually is not
-durable across a package reinstall. Re-run this script after an OpenClaw or
-plugin reinstall until an upstream release includes the compatibility fix.
 
 The suite verifies direct-array object discovery, direct-object field
 discovery, workspace-info counts, and the diagnostic failure path for an
