@@ -185,6 +185,11 @@ services:
       - ../openclaw/workspaces/default:/home/node/.openclaw/workspace
       - ../openclaw/secrets/auth-profile:/home/node/.config/openclaw
       - ../openclaw/skills:/home/node/.openclaw/skills:ro
+      # Maintained-in-repo Twenty CRM plugin (plugins/twenty-plugin).
+      # Mounted read-only; the OpenClaw gateway installs it from this path
+      # (see docker/openclaw-entrypoint.sh) so the repository copy is the
+      # canonical plugin instead of the npm-installed @lacneu/twenty-openclaw.
+      - ../plugins:/home/node/plugins:ro
     cap_drop:
       - NET_RAW
       - NET_ADMIN
