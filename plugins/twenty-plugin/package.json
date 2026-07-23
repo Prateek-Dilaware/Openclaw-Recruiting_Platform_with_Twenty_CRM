@@ -1,0 +1,66 @@
+{
+  "name": "@crm/twenty-plugin",
+  "version": "0.8.4-crm.1",
+  "type": "module",
+  "description": "Maintained-in-repo Twenty CRM plugin for OpenClaw (CRM Recruiting Platform). Forked from @lacneu/twenty-openclaw@0.8.4 and vendored into plugins/twenty-plugin. Adds absorbed metadata-envelope compatibility and empty-write safety guards. This is the canonical plugin the OpenClaw gateway loads for this project — the npm package is no longer a runtime dependency.",
+  "license": "MIT",
+  "author": "CRM Recruiting Platform (vendored from Olivier Neu / @lacneu/twenty-openclaw)",
+  "keywords": [
+    "openclaw",
+    "openclaw-plugin",
+    "twenty",
+    "twenty-crm",
+    "crm",
+    "people",
+    "companies",
+    "opportunities"
+  ],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "examples",
+    "openclaw.plugin.json",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "build:test": "tsc -p tsconfig.test-build.json",
+    "clean": "rm -rf dist dist-test",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "test": "npm run build:test && node --test 'dist-test/test/**/*.test.js'",
+    "smoke-test": "npm run build && node scripts/smoke-test.mjs",
+    "prepublishOnly": "npm run clean && npm run build"
+  },
+  "openclaw": {
+    "extensions": [
+      "./dist/index.js"
+    ],
+    "compat": {
+      "pluginApi": ">=2026.5.0",
+      "minGatewayVersion": "2026.5.0"
+    }
+  },
+  "dependencies": {
+    "@sinclair/typebox": "^0.34.0"
+  },
+  "devDependencies": {
+    "@mariozechner/pi-agent-core": "^0.70.2",
+    "@types/node": "^22.0.0",
+    "openclaw": ">=2026.5.0",
+    "typescript": "^5.6.0"
+  },
+  "peerDependencies": {
+    "openclaw": ">=2026.5.0"
+  },
+  "peerDependenciesMeta": {
+    "openclaw": {
+      "optional": true
+    }
+  }
+}

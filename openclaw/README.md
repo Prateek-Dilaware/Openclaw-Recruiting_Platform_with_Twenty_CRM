@@ -4,14 +4,14 @@ This directory contains the integration skills and isolated runtime structure fo
 
 ## Canonical Local Development Workflow
 
-Use the integrated Docker stack defined in docker/docker-compose.dev.yml.
+Start the integrated stack from the docker/ directory:
 
 ```bash
 cd docker
 docker compose -f docker-compose.dev.yml up --build
 ```
 
-This starts the full local stack, including OpenClaw, the FastAPI backend, the React frontend, Twenty CRM, PostgreSQL, and Redis.
+This launches the full local stack, including OpenClaw, the backend, the frontend, Twenty CRM, PostgreSQL, and Redis.
 
 ## First-Time Setup & Onboarding
 
@@ -26,4 +26,4 @@ After the stack is running, OpenClaw starts unconfigured until you complete onbo
 
 Once onboarding is finished, OpenClaw generates its openclaw.json configuration inside the data/ directory, which is safely gitignored.
 
-> The legacy compose files docker/docker-compose.yml and docker/docker-compose.openclaw.yml are retained for rollback/reference only; they are not the default development entry point.
+> The legacy compose files docker/docker-compose.yml and docker/docker-compose.openclaw.yml are preserved for rollback/reference only; they are not the default development entry point.

@@ -1,0 +1,240 @@
+# ─── Openclaw Recruiting Platform — Development Docker Compose ─────────────────
+#
+# Starts the full stack:
+#   1. twenty  — Twenty CRM (server + worker + postgres + redis)
+#   2. backend — FastAPI backend (with hot-reload via bind mount)
+#   3. frontend — Vite + React frontend (with HMR via bind mount)
+#
+# Openclaw container is fully integrated and runs alongside the CRM.
+#
+# USAGE:
+#   cd docker
+#   docker compose -f docker-compose.dev.yml up --build
+#
+# PORTS:
+#   localhost:3000  → Twenty CRM UI
+#   localhost:8000  → Backend FastAPI (+ /docs for Swagger UI)
+#   localhost:5173  → Frontend Vite Dev Server
+# ──────────────────────────────────────────────────────────────────────────────
+
+name: openclaw-dev
+
+services:
+
+  # ─── Twenty CRM ─────────────────────────────────────────────────────────────
+  twenty-server:
+    image: twentycrm/twenty:${TWENTY_TAG:-latest}
+    container_name: twenty-server
+    volumes:
+      - twenty-server-data:/app/packages/twenty-server/.local-storage
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_PORT: 3000
+      PG_DATABASE_URL: postgres://${PG_DATABASE_USER:-postgres}:${PG_DATABASE_PASSWORD:-postgres}@twenty-db:5432/default
+      SERVER_URL: ${TWENTY_SERVER_URL:-http://localhost:3000}
+      REDIS_URL: redis://twenty-redis:6379
+      DISABLE_DB_MIGRATIONS: ${DISABLE_DB_MIGRATIONS:-false}
+      DISABLE_CRON_JOBS_REGISTRATION: ${DISABLE_CRON_JOBS_REGISTRATION:-false}
+      STORAGE_TYPE: local
+      ENCRYPTION_KEY: ${TWENTY_ENCRYPTION_KEY}
+      APP_SECRET: ${TWENTY_APP_SECRET:-}
+    depends_on:
+      twenty-db:
+        condition: service_healthy
+      twenty-redis:
+        condition: service_healthy
+    healthcheck:
+      test: curl --fail http://localhost:3000/healthz
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - recruiting-net
+
+  twenty-worker:
+    image: twentycrm/twenty:${TWENTY_TAG:-latest}
+    container_name: twenty-worker
+    volumes:
+      - twenty-server-data:/app/packages/twenty-server/.local-storage
+    command: ["yarn", "worker:prod"]
+    environment:
+      PG_DATABASE_URL: postgres://${PG_DATABASE_USER:-postgres}:${PG_DATABASE_PASSWORD:-postgres}@twenty-db:5432/default
+      SERVER_URL: ${TWENTY_SERVER_URL:-http://localhost:3000}
+      REDIS_URL: redis://twenty-redis:6379
+      DISABLE_DB_MIGRATIONS: "true"
+      DISABLE_CRON_JOBS_REGISTRATION: "true"
+      STORAGE_TYPE: local
+      ENCRYPTION_KEY: ${TWENTY_ENCRYPTION_KEY}
+      APP_SECRET: ${TWENTY_APP_SECRET:-}
+    depends_on:
+      twenty-db:
+        condition: service_healthy
+      twenty-server:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - recruiting-net
+
+  twenty-db:
+    image: postgres:16
+    container_name: twenty-db
+    volumes:
+      - twenty-db-data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: default
+      POSTGRES_PASSWORD: ${PG_DATABASE_PASSWORD:-postgres}
+      POSTGRES_USER: ${PG_DATABASE_USER:-postgres}
+    healthcheck:
+      test: pg_isready -U ${PG_DATABASE_USER:-postgres} -h localhost -d postgres
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    networks:
+      - recruiting-net
+
+  twenty-redis:
+    image: redis
+    container_name: twenty-redis
+    command: ["--maxmemory-policy", "noeviction"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    networks:
+      - recruiting-net
+
+  # ─── Backend (FastAPI) ───────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ..          # root of the project
+      dockerfile: docker/Dockerfile.backend
+    container_name: openclaw-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      # Bind mount: local backend/ → container /app/
+      # Any file change on your machine instantly reflects inside the container.
+      # uvicorn --reload watches /app and restarts automatically.
+      - ../backend:/app
+    env_file:
+      - ../backend/.env    # Uses the same .env you already have
+    environment:
+      # Use settings defined in backend/.env
+      - DEBUG=true
+    restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - recruiting-net
+
+  # ─── Frontend (Vite + React) ─────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ..          # root of the project
+      dockerfile: docker/Dockerfile.frontend
+    container_name: openclaw-frontend
+    ports:
+      - "5173:5173"
+    volumes:
+      # Bind mount: local frontend/src → container /app/src
+      # Vite watches for changes and does Hot Module Replacement (HMR) in < 1s.
+      # node_modules is excluded via the anonymous volume trick below.
+      - ../frontend:/app
+      - /app/node_modules  # Anonymous volume: prevents host's node_modules from overwriting container's
+    environment:
+      # Points the frontend to the backend — accessible from the browser (host machine)
+      VITE_API_URL: http://localhost:8000
+      VITE_APP_NAME: "Openclaw Recruiting Platform"
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - recruiting-net
+
+  # ─── Openclaw Gateway ────────────────────────────────────────────────────────
+  openclaw:
+    image: ghcr.io/openclaw/openclaw:latest-browser
+    container_name: openclaw
+    env_file:
+      - .env
+    environment:
+      HOME: /home/node
+      OPENCLAW_HOME: /home/node
+      TERM: xterm-256color
+
+      # Keep OpenClaw runtime paths inside the container.
+      OPENCLAW_STATE_DIR: /home/node/.openclaw
+      OPENCLAW_CONFIG_PATH: /home/node/.openclaw/openclaw.json
+      OPENCLAW_CONFIG_DIR: /home/node/.openclaw
+      OPENCLAW_WORKSPACE_DIR: /home/node/.openclaw/workspace
+
+      OPENCLAW_GATEWAY_TOKEN: ${OPENCLAW_GATEWAY_TOKEN:-openclaw-dev-token}
+      OPENCLAW_DISABLE_BONJOUR: "1"
+      TZ: UTC
+
+      # CRM-specific: available to Skills running inside the agent workspace
+      TWENTY_API_KEY: ${TWENTY_API_KEY:-}
+      TWENTY_API_URL: http://host.docker.internal:3000
+    volumes:
+      - ../openclaw/data:/home/node/.openclaw
+      - ../openclaw/workspaces/default:/home/node/.openclaw/workspace
+      
+      # Maintained-in-repo Twenty CRM plugin (plugins/twenty-plugin).
+      # Mounted read-only; the OpenClaw gateway installs it from this path
+      # (see docker/openclaw-entrypoint.sh) so the repository copy is the
+      # canonical plugin instead of the npm-installed @lacneu/twenty-openclaw.
+      - ../plugins:/home/node/plugins:ro
+    cap_drop:
+      - NET_RAW
+      - NET_ADMIN
+    security_opt:
+      - no-new-privileges:true
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "18789:18789"
+      - "18790:18790"
+      - "3978:3978"
+    init: true
+    restart: unless-stopped
+    command:
+      [
+        "node",
+        "dist/index.js",
+        "gateway",
+        "--bind",
+        "lan",
+        "--port",
+        "18789",
+        "--allow-unconfigured",
+      ]
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:18789/healthz').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - recruiting-net
+
+# ─── Volumes ─────────────────────────────────────────────────────────────────
+volumes:
+  twenty-db-data:
+  twenty-server-data:
+
+# ─── Network ──────────────────────────────────────────────────────────────────
+networks:
+  recruiting-net:
+    driver: bridge
